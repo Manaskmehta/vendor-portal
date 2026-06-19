@@ -7,7 +7,7 @@ import { API_URL, TOKEN_KEY, USER_KEY } from "@/lib/config";
 
 export default function VendorLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export default function VendorLoginPage() {
       const response = await fetch(`${API_URL}/auth/vendor/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
 
       const data = await response.json();
@@ -78,8 +78,8 @@ export default function VendorLoginPage() {
                   autoFocus
                   className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black focus:bg-white transition-all outline-none"
                   placeholder="vendor@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   disabled={loading}
                 />
               </div>
