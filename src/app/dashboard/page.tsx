@@ -7,6 +7,10 @@ import { LogOut, Building2, X, Upload, Trash2, Truck, FileText } from "lucide-re
 import { TOKEN_KEY, USER_KEY } from "@/lib/config";
 import { apiRequest } from "@/lib/api";
 import { QUOTATION_DELIVERY_TERM_OPTIONS } from "@/lib/quotation-terms";
+import { calcLineGstAmount, calcLineTotalInclGst } from "@/lib/gst";
+import Loader from "@/components/Loader";
+import SubmitButton from "@/components/ui/SubmitButton";
+import { useSubmitLock } from "@/lib/useSubmitLock";
 
 function formatCurrency(value: number): string {
   return `₹ ${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -36,6 +40,9 @@ interface VendorRfq {
       itemCode: string;
       itemName: string;
       uom: string;
+      item?: {
+        hsnCodeRef?: { gstRate?: number | string | null } | null;
+      } | null;
       indent: {
         documentNo: string;
         title: string;
@@ -135,10 +142,10 @@ export default function VendorDashboard() {
   const [selectedPo, setSelectedPo] = useState<VendorPo | null>(null);
   const [validTill, setValidTill] = useState("");
   const [promisedDays, setPromisedDays] = useState("7");
-  const [taxAmount, setTaxAmount] = useState("0");
   const [paymentTerms, setPaymentTerms] = useState("");
   const [termsOfDelivery, setTermsOfDelivery] = useState("");
   const [rates, setRates] = useState<Record<string, string>>({});
+  const [gstPercents, setGstPercents] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<{ fileName: string; preview: string }[]>([]);
   const [dispatchQty, setDispatchQty] = useState<Record<string, string>>({});
   const [vehicleNo, setVehicleNo] = useState("");
@@ -153,8 +160,9 @@ export default function VendorDashboard() {
   const [quoteModalError, setQuoteModalError] = useState("");
   const [dispatchModalError, setDispatchModalError] = useState("");
   const [success, setSuccess] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [dispatchSaving, setDispatchSaving] = useState(false);
+  const { isSubmitting: saving, withSubmitLock: withQuoteSubmitLock } = useSubmitLock();
+  const { isSubmitting: dispatchSaving, withSubmitLock: withDispatchSubmitLock } = useSubmitLock();
+  const [pageLoading, setPageLoading] = useState(true);
 
   const loadRfqs = useCallback(async () => {
     const res = await apiRequest<VendorRfqResponse>("/vendor/procurement/quotation-requests?limit=50");
@@ -187,12 +195,11 @@ export default function VendorDashboard() {
       }, 0);
     }
     const id = window.setTimeout(() => {
-      void loadRfqs().catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unable to load vendor RFQs.");
-      });
-      void loadDispatchData().catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Unable to load vendor dispatch data.");
-      });
+      void Promise.all([loadRfqs(), loadDispatchData()])
+        .catch((err: unknown) => {
+          setError(err instanceof Error ? err.message : "Unable to load vendor portal data.");
+        })
+        .finally(() => setPageLoading(false));
     }, 0);
     return () => window.clearTimeout(id);
   }, [router, loadRfqs, loadDispatchData]);
@@ -234,7 +241,7 @@ export default function VendorDashboard() {
       setDispatchModalError("Enter dispatch quantity for at least one PO line.");
       return;
     }
-    setDispatchSaving(true);
+    await withDispatchSubmitLock(async () => {
     setDispatchModalError("");
     try {
       await apiRequest("/vendor/procurement/dispatches", {
@@ -257,9 +264,8 @@ export default function VendorDashboard() {
       await loadDispatchData();
     } catch (err) {
       setDispatchModalError(err instanceof Error ? err.message : "Unable to submit dispatch.");
-    } finally {
-      setDispatchSaving(false);
     }
+    });
   };
 
   const openSubmit = (rfq: VendorRfq) => {
@@ -271,10 +277,17 @@ export default function VendorDashboard() {
     setSelectedRfq(rfq);
     setValidTill("");
     setPromisedDays("7");
-    setTaxAmount("0");
     setPaymentTerms("");
     setTermsOfDelivery("");
     setRates(Object.fromEntries(rfq.lines.map((line) => [line.indentItemId, ""])));
+    setGstPercents(
+      Object.fromEntries(
+        rfq.lines.map((line) => {
+          const defaultGst = line.indentItem.item?.hsnCodeRef?.gstRate;
+          return [line.indentItemId, defaultGst != null ? String(Number(defaultGst)) : "0"];
+        })
+      )
+    );
     setPhotos([]);
     setQuoteModalError("");
     setError("");
@@ -297,8 +310,13 @@ export default function VendorDashboard() {
         setQuoteModalError(`Rate is mandatory for ${line.indentItem.itemCode}. Enter a value greater than zero.`);
         return;
       }
+      const gstPercent = Number(gstPercents[line.indentItemId]);
+      if (!Number.isFinite(gstPercent) || gstPercent < 0 || gstPercent > 100) {
+        setQuoteModalError(`Enter a valid GST % (0–100) for ${line.indentItem.itemCode}.`);
+        return;
+      }
     }
-    setSaving(true);
+    await withQuoteSubmitLock(async () => {
     setQuoteModalError("");
     try {
       await apiRequest(`/vendor/procurement/quotation-requests/${selectedRfq.id}/submit`, {
@@ -306,13 +324,13 @@ export default function VendorDashboard() {
         body: JSON.stringify({
           validTill,
           promisedDays: Math.max(0, Math.floor(Number(promisedDays) || 0)),
-          taxAmount: Number(taxAmount) || 0,
           paymentTerms: paymentTerms.trim() || undefined,
           termsOfDelivery: termsOfDelivery.trim() || undefined,
           photoUrls: photos.map((photo) => photo.preview),
           lines: selectedRfq.lines.map((line) => ({
             indentItemId: line.indentItemId,
             unitRate: Number(rates[line.indentItemId]),
+            gstPercent: Number(gstPercents[line.indentItemId]) || 0,
           })),
         }),
       });
@@ -321,9 +339,8 @@ export default function VendorDashboard() {
       await loadRfqs();
     } catch (err) {
       setQuoteModalError(err instanceof Error ? err.message : "Unable to submit quotation.");
-    } finally {
-      setSaving(false);
     }
+    });
   };
 
   return (
@@ -347,6 +364,10 @@ export default function VendorDashboard() {
       </header>
 
       <main className="px-8 py-12 max-w-6xl mx-auto space-y-8">
+        {pageLoading ? (
+          <Loader text="Loading vendor portal..." />
+        ) : (
+        <>
         <h2 className="text-2xl font-black tracking-tight">
           Welcome{user?.name || user?.fullName || user?.email ? `, ${user.name || user.fullName || user.email}` : ""}.
         </h2>
@@ -502,6 +523,8 @@ export default function VendorDashboard() {
             </table>
           </div>
         </section>
+        </>
+        )}
       </main>
 
       {selectedPo && (
@@ -622,9 +645,9 @@ export default function VendorDashboard() {
 
             <div className="flex justify-end gap-3">
               <button onClick={() => { setSelectedPo(null); setDispatchModalError(""); }} className="px-6 py-3 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-50">Cancel</button>
-              <button onClick={() => void submitDispatch()} disabled={dispatchSaving} className="bg-black disabled:bg-gray-300 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest">
-                {dispatchSaving ? "Submitting..." : "Submit Dispatch"}
-              </button>
+              <SubmitButton onClick={() => void submitDispatch()} loading={dispatchSaving} loadingText="Submitting..." className="bg-black disabled:bg-gray-300 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest">
+                Submit Dispatch
+              </SubmitButton>
             </div>
           </div>
         </div>
@@ -648,7 +671,7 @@ export default function VendorDashboard() {
               </div>
             )}
 
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Valid Till <span className="text-red-500">*</span></label>
                 <input type="date" value={validTill} onChange={(e) => setValidTill(e.target.value)} className={`w-full px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-black ${quoteModalError && !validTill ? "ring-2 ring-red-200" : ""}`} />
@@ -656,10 +679,6 @@ export default function VendorDashboard() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Promised Days after PO <span className="text-red-500">*</span></label>
                 <input type="number" min={0} value={promisedDays} onChange={(e) => setPromisedDays(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-black" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">GST Amount Extra</label>
-                <input type="number" min={0} value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-black" />
               </div>
             </div>
 
@@ -690,14 +709,14 @@ export default function VendorDashboard() {
             </div>
 
             <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
-              Enter line rates excluding GST. GST will be extra as applicable.
+              Enter line rates excluding GST. Set GST % per line — GST amount and total are auto-calculated.
             </div>
 
             <div className="overflow-x-auto border border-gray-100 rounded-2xl">
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="bg-gray-50/50 border-b border-gray-100">
-                    {["Indent", "Item", "Requested Qty", "Rate", "Line Total"].map((h) => (
+                    {["Indent", "Item", "Requested Qty", "Rate", "GST %", "Taxable", "GST Amt", "Total"].map((h) => (
                       <th key={h} className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">{h}</th>
                     ))}
                   </tr>
@@ -706,7 +725,10 @@ export default function VendorDashboard() {
                   {selectedRfq.lines.map((line) => {
                     const qty = Number(line.quantity);
                     const rate = Number(rates[line.indentItemId]);
-                    const lineTotal = qty > 0 && rate > 0 ? qty * rate : 0;
+                    const gstPercent = Number(gstPercents[line.indentItemId]) || 0;
+                    const taxable = qty > 0 && rate > 0 ? qty * rate : 0;
+                    const gstAmount = calcLineGstAmount(taxable, gstPercent);
+                    const lineTotal = calcLineTotalInclGst(taxable, gstPercent);
                     return (
                     <tr key={line.id} className="border-b border-gray-50 last:border-0">
                       <td className="px-4 py-3 text-xs font-mono font-bold">{line.indentItem.indent.documentNo}</td>
@@ -723,6 +745,19 @@ export default function VendorDashboard() {
                           className={`w-32 px-3 py-2 bg-gray-50 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-black ${quoteModalError && !(Number(rates[line.indentItemId]) > 0) ? "ring-2 ring-red-200" : ""}`}
                         />
                       </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          value={gstPercents[line.indentItemId] ?? "0"}
+                          onChange={(e) => setGstPercents((prev) => ({ ...prev, [line.indentItemId]: e.target.value }))}
+                          className="w-20 px-3 py-2 bg-gray-50 rounded-lg text-sm font-medium outline-none focus:ring-2 focus:ring-black"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-700">{taxable > 0 ? formatCurrency(taxable) : "—"}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-amber-700">{gstAmount > 0 ? formatCurrency(gstAmount) : "—"}</td>
                       <td className="px-4 py-3 text-sm font-bold text-black">
                         {lineTotal > 0 ? formatCurrency(lineTotal) : "—"}
                       </td>
@@ -732,6 +767,49 @@ export default function VendorDashboard() {
                 </tbody>
               </table>
             </div>
+
+            {selectedRfq.lines.length > 0 && (
+              <div className="bg-gray-50 rounded-2xl p-4 grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Subtotal</p>
+                  <p className="text-lg font-black text-black">
+                    {formatCurrency(
+                      selectedRfq.lines.reduce((sum, line) => {
+                        const qty = Number(line.quantity);
+                        const rate = Number(rates[line.indentItemId]) || 0;
+                        return sum + (qty > 0 && rate > 0 ? qty * rate : 0);
+                      }, 0)
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Total GST</p>
+                  <p className="text-lg font-black text-amber-700">
+                    {formatCurrency(
+                      selectedRfq.lines.reduce((sum, line) => {
+                        const qty = Number(line.quantity);
+                        const rate = Number(rates[line.indentItemId]) || 0;
+                        const taxable = qty > 0 && rate > 0 ? qty * rate : 0;
+                        return sum + calcLineGstAmount(taxable, Number(gstPercents[line.indentItemId]) || 0);
+                      }, 0)
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Grand Total</p>
+                  <p className="text-lg font-black text-black">
+                    {formatCurrency(
+                      selectedRfq.lines.reduce((sum, line) => {
+                        const qty = Number(line.quantity);
+                        const rate = Number(rates[line.indentItemId]) || 0;
+                        const taxable = qty > 0 && rate > 0 ? qty * rate : 0;
+                        return sum + calcLineTotalInclGst(taxable, Number(gstPercents[line.indentItemId]) || 0);
+                      }, 0)
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Quotation Attachments</p>
@@ -774,9 +852,9 @@ export default function VendorDashboard() {
 
             <div className="flex justify-end gap-3">
               <button onClick={() => { setSelectedRfq(null); setQuoteModalError(""); }} className="px-6 py-3 border border-gray-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-50">Cancel</button>
-              <button onClick={() => void submitQuote()} disabled={saving} className="bg-black disabled:bg-gray-300 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest">
-                {saving ? "Submitting..." : "Submit Quotation"}
-              </button>
+              <SubmitButton onClick={() => void submitQuote()} loading={saving} loadingText="Submitting..." className="bg-black disabled:bg-gray-300 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest">
+                Submit Quotation
+              </SubmitButton>
             </div>
           </div>
         </div>
