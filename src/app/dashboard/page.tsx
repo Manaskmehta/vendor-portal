@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { LogOut, Building2, X, Upload, Trash2, Truck, FileText } from "lucide-react";
+import { LogOut, X, Upload, Trash2, Truck, FileText } from "lucide-react";
 import { TOKEN_KEY, USER_KEY } from "@/lib/config";
 import { apiRequest } from "@/lib/api";
 import { QUOTATION_DELIVERY_TERM_OPTIONS } from "@/lib/quotation-terms";
@@ -347,12 +347,16 @@ export default function VendorDashboard() {
     <div className="min-h-screen bg-white">
       <header className="border-b border-gray-100 px-8 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center">
-            <Building2 className="w-5 h-5" />
-          </div>
+          <Image
+            src="/macanx-logo.png"
+            alt="MacanX"
+            width={210}
+            height={60}
+            className="h-[54px] w-auto object-contain"
+            priority
+          />
           <div>
             <h1 className="text-sm font-black uppercase tracking-widest">Vendor Portal</h1>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest">WCCS ERP</p>
           </div>
         </div>
         <button
@@ -377,7 +381,7 @@ export default function VendorDashboard() {
         <section className="bg-white border border-gray-100 rounded-[2rem] overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-100">
             <h3 className="text-lg font-black tracking-tight">RFQ Inbox</h3>
-            <p className="text-xs font-medium text-gray-400 mt-1">Submit rates for requests sent by WCCS purchase team.</p>
+            <p className="text-xs font-medium text-gray-400 mt-1">Submit rates for requests sent by MacanX purchase team.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
@@ -436,7 +440,7 @@ export default function VendorDashboard() {
           <div className="px-6 py-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h3 className="text-lg font-black tracking-tight">Dispatch Against Purchase Order</h3>
-              <p className="text-xs font-medium text-gray-400 mt-1">Share dispatch, vehicle, challan, documents, and line quantities before WCCS creates GRN.</p>
+              <p className="text-xs font-medium text-gray-400 mt-1">Share dispatch, vehicle, challan, documents, and line quantities before MacanX creates GRN.</p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -487,7 +491,7 @@ export default function VendorDashboard() {
         <section className="bg-white border border-gray-100 rounded-[2rem] overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-100">
             <h3 className="text-lg font-black tracking-tight">Submitted Dispatches</h3>
-            <p className="text-xs font-medium text-gray-400 mt-1">Dispatch details already sent to WCCS stores team.</p>
+            <p className="text-xs font-medium text-gray-400 mt-1">Dispatch details already sent to MacanX stores team.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
@@ -534,7 +538,7 @@ export default function VendorDashboard() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Vendor Dispatch</p>
                 <h2 className="text-2xl font-black tracking-tight">{selectedPo.poNo}</h2>
-                <p className="text-xs font-medium text-gray-400 mt-1">This does not create GRN. WCCS will verify and receive separately.</p>
+                <p className="text-xs font-medium text-gray-400 mt-1">This does not create GRN. MacanX will verify and receive separately.</p>
               </div>
               <button onClick={() => { setSelectedPo(null); setDispatchModalError(""); }} className="p-2 hover:bg-gray-50 rounded-full">
                 <X className="w-4 h-4 text-gray-500" />

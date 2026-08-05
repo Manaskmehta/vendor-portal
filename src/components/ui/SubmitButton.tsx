@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import Image from "next/image";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,15 @@ export default function SubmitButton({
     >
       {loading ? (
         <span className="inline-flex items-center justify-center gap-2">
-          <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+          <Image
+            src="/ring.png"
+            alt=""
+            width={16}
+            height={16}
+            className="h-4 w-4 shrink-0 animate-spin"
+            aria-hidden
+            unoptimized
+          />
           {loadingText ?? children}
         </span>
       ) : (

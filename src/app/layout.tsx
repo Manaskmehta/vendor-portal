@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WCCS ERP - Vendor Portal",
-  description: "Vendor portal for WCCS ERP system",
+  title: "MacanX - Vendor Portal",
+  description: "Vendor portal for MacanX ERP system",
+  icons: {
+    icon: "/ring.png",
+    apple: "/ring.png",
+  },
 };
 
 export default function RootLayout({

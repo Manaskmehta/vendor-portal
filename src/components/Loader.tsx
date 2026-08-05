@@ -1,16 +1,27 @@
-import { Loader2 } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 export function LoaderSpinner({
   text = "Loading...",
   className,
+  size = 72,
 }: {
   text?: string;
   className?: string;
+  size?: number;
 }) {
   return (
     <div className={cn("flex flex-col items-center gap-3", className)}>
-      <Loader2 className="h-8 w-8 animate-spin text-black" aria-hidden />
+      <Image
+        src="/ring.png"
+        alt=""
+        width={size}
+        height={size}
+        className="animate-spin"
+        aria-hidden
+        unoptimized
+        priority
+      />
       <p className="text-xs font-black uppercase tracking-[0.3em] text-gray-300">{text}</p>
     </div>
   );
