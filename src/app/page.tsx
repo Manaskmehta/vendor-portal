@@ -80,6 +80,8 @@ export default function VendorLoginPage() {
                 </div>
                 <input
                   type="text"
+                  name="username"
+                  autoComplete="username"
                   required
                   autoFocus
                   className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black focus:bg-white transition-all outline-none"
@@ -101,6 +103,8 @@ export default function VendorLoginPage() {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   required
                   className="w-full pl-11 pr-12 py-3.5 bg-gray-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-black focus:bg-white transition-all outline-none"
                   placeholder="••••••••"
