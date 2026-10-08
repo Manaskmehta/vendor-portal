@@ -1,0 +1,22 @@
+{
+  "paymentTerms": [
+    { "short": "IMM", "label": "Immediate" },
+    { "short": "7D", "label": "7 Days" },
+    { "short": "15D", "label": "15 Days" },
+    { "short": "30D", "label": "30 Days" },
+    { "short": "45D", "label": "45 Days" },
+    { "short": "ADV", "label": "Advance Payment" }
+  ],
+  "deliveryTerms": [
+    { "short": "EXW", "label": "Ex-Works (EXW)", "inco": true },
+    { "short": "FCA", "label": "Free Carrier (FCA)", "inco": true },
+    { "short": "DAP", "label": "Delivered at Place (DAP)", "inco": true },
+    { "short": "CIF", "label": "Cost, Insurance & Freight (CIF)", "inco": true },
+    { "short": "FOB", "label": "Free on Board (FOB)", "inco": true },
+    { "short": "7D", "label": "Delivery within 7 days from PO date" },
+    { "short": "15D", "label": "Delivery within 15 days from PO date" },
+    { "short": "30D", "label": "Delivery within 30 days from PO date" },
+    { "short": "45D", "label": "Delivery within 45 days from PO date" },
+    { "short": "GATE", "label": "Delivered at factory gate — Mundra" }
+  ]
+}

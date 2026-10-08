@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { LogOut, X, Upload, Trash2, Truck, FileText } from "lucide-react";
+import { LogOut, X, Upload, Trash2, Truck, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { TOKEN_KEY, USER_KEY } from "@/lib/config";
 import { apiRequest } from "@/lib/api";
-import { QUOTATION_DELIVERY_TERM_OPTIONS } from "@/lib/quotation-terms";
+import { DELIVERY_TERMS, PAYMENT_TERMS, optionsIncludingCurrent, termOptionText } from "@/lib/quotation-terms";
 import { calcLineGstAmount, calcLineTotalInclGst } from "@/lib/gst";
 import Loader from "@/components/Loader";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -52,8 +52,16 @@ interface VendorRfq {
   }[];
 }
 
+interface ListMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 interface VendorRfqResponse {
   data?: VendorRfq[];
+  meta?: ListMeta;
 }
 
 interface DispatchDocument {
@@ -106,6 +114,50 @@ interface VendorDispatch {
 
 interface PaginatedResponse<T> {
   data?: T[];
+  meta?: ListMeta;
+}
+
+const LIST_PAGE_SIZE = 20;
+const EMPTY_META: ListMeta = { total: 0, page: 1, limit: LIST_PAGE_SIZE, totalPages: 1 };
+
+function ListPager({
+  meta,
+  onPageChange,
+}: {
+  meta: ListMeta;
+  onPageChange: (page: number) => void;
+}) {
+  if (meta.total === 0) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+        {meta.total} record{meta.total === 1 ? "" : "s"}
+      </p>
+      {meta.totalPages > 1 && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={meta.page <= 1}
+            onClick={() => onPageChange(meta.page - 1)}
+            className="p-2 rounded-xl text-gray-500 disabled:text-gray-200 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+            {meta.page} / {meta.totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={meta.page >= meta.totalPages}
+            onClick={() => onPageChange(meta.page + 1)}
+            className="p-2 rounded-xl text-gray-500 disabled:text-gray-200 disabled:cursor-not-allowed hover:bg-gray-50"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatDate(value?: string) {
@@ -136,8 +188,14 @@ export default function VendorDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<VendorUser | null>(null);
   const [rfqs, setRfqs] = useState<VendorRfq[]>([]);
+  const [rfqPage, setRfqPage] = useState(1);
+  const [rfqMeta, setRfqMeta] = useState<ListMeta>(EMPTY_META);
   const [purchaseOrders, setPurchaseOrders] = useState<VendorPo[]>([]);
+  const [poPage, setPoPage] = useState(1);
+  const [poMeta, setPoMeta] = useState<ListMeta>(EMPTY_META);
   const [dispatches, setDispatches] = useState<VendorDispatch[]>([]);
+  const [dispatchPage, setDispatchPage] = useState(1);
+  const [dispatchMeta, setDispatchMeta] = useState<ListMeta>(EMPTY_META);
   const [selectedRfq, setSelectedRfq] = useState<VendorRfq | null>(null);
   const [selectedPo, setSelectedPo] = useState<VendorPo | null>(null);
   const [validTill, setValidTill] = useState("");
@@ -164,18 +222,27 @@ export default function VendorDashboard() {
   const { isSubmitting: dispatchSaving, withSubmitLock: withDispatchSubmitLock } = useSubmitLock();
   const [pageLoading, setPageLoading] = useState(true);
 
-  const loadRfqs = useCallback(async () => {
-    const res = await apiRequest<VendorRfqResponse>("/vendor/procurement/quotation-requests?limit=50");
+  const loadRfqs = useCallback(async (page = 1) => {
+    const res = await apiRequest<VendorRfqResponse>(
+      `/vendor/procurement/quotation-requests?page=${page}&limit=${LIST_PAGE_SIZE}`,
+    );
     setRfqs(res.data || []);
+    setRfqMeta(res.meta ?? { ...EMPTY_META, page });
   }, []);
 
-  const loadDispatchData = useCallback(async () => {
+  const loadDispatchData = useCallback(async (nextPoPage = 1, nextDispatchPage = 1) => {
     const [poRes, dispatchRes] = await Promise.all([
-      apiRequest<PaginatedResponse<VendorPo>>("/vendor/procurement/purchase-orders?limit=50"),
-      apiRequest<PaginatedResponse<VendorDispatch>>("/vendor/procurement/dispatches?limit=50"),
+      apiRequest<PaginatedResponse<VendorPo>>(
+        `/vendor/procurement/purchase-orders?page=${nextPoPage}&limit=${LIST_PAGE_SIZE}`,
+      ),
+      apiRequest<PaginatedResponse<VendorDispatch>>(
+        `/vendor/procurement/dispatches?page=${nextDispatchPage}&limit=${LIST_PAGE_SIZE}`,
+      ),
     ]);
     setPurchaseOrders(poRes.data || []);
+    setPoMeta(poRes.meta ?? { ...EMPTY_META, page: nextPoPage });
     setDispatches(dispatchRes.data || []);
+    setDispatchMeta(dispatchRes.meta ?? { ...EMPTY_META, page: nextDispatchPage });
   }, []);
 
   useEffect(() => {
@@ -195,7 +262,7 @@ export default function VendorDashboard() {
       }, 0);
     }
     const id = window.setTimeout(() => {
-      void Promise.all([loadRfqs(), loadDispatchData()])
+      void Promise.all([loadRfqs(1), loadDispatchData(1, 1)])
         .catch((err: unknown) => {
           setError(err instanceof Error ? err.message : "Unable to load vendor portal data.");
         })
@@ -261,7 +328,7 @@ export default function VendorDashboard() {
       });
       setSuccess("Dispatch submitted successfully.");
       setSelectedPo(null);
-      await loadDispatchData();
+      await loadDispatchData(poPage, dispatchPage);
     } catch (err) {
       setDispatchModalError(err instanceof Error ? err.message : "Unable to submit dispatch.");
     }
@@ -336,7 +403,7 @@ export default function VendorDashboard() {
       });
       setSuccess("Quotation submitted successfully.");
       setSelectedRfq(null);
-      await loadRfqs();
+      await loadRfqs(rfqPage);
     } catch (err) {
       setQuoteModalError(err instanceof Error ? err.message : "Unable to submit quotation.");
     }
@@ -434,6 +501,15 @@ export default function VendorDashboard() {
               </tbody>
             </table>
           </div>
+          <ListPager
+            meta={rfqMeta}
+            onPageChange={(page) => {
+              setRfqPage(page);
+              void loadRfqs(page).catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : "Unable to load RFQs.");
+              });
+            }}
+          />
         </section>
 
         <section className="bg-white border border-gray-100 rounded-[2rem] overflow-hidden">
@@ -486,6 +562,15 @@ export default function VendorDashboard() {
               </tbody>
             </table>
           </div>
+          <ListPager
+            meta={poMeta}
+            onPageChange={(page) => {
+              setPoPage(page);
+              void loadDispatchData(page, dispatchPage).catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : "Unable to load purchase orders.");
+              });
+            }}
+          />
         </section>
 
         <section className="bg-white border border-gray-100 rounded-[2rem] overflow-hidden">
@@ -526,6 +611,15 @@ export default function VendorDashboard() {
               </tbody>
             </table>
           </div>
+          <ListPager
+            meta={dispatchMeta}
+            onPageChange={(page) => {
+              setDispatchPage(page);
+              void loadDispatchData(poPage, page).catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : "Unable to load dispatches.");
+              });
+            }}
+          />
         </section>
         </>
         )}
@@ -695,20 +789,23 @@ export default function VendorDashboard() {
                   className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-black"
                 >
                   <option value="">Select delivery terms</option>
-                  {QUOTATION_DELIVERY_TERM_OPTIONS.map((option) => (
-                    <option key={option} value={option}>{option}</option>
+                  {optionsIncludingCurrent(DELIVERY_TERMS, termsOfDelivery).map((option) => (
+                    <option key={option.label} value={option.label}>{termOptionText(option)}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Payment Terms</label>
-                <input
+                <select
                   value={paymentTerms}
                   onChange={(e) => setPaymentTerms(e.target.value)}
-                  placeholder="e.g. 15 Days, 30 Days from GRN"
-                  maxLength={120}
                   className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-black"
-                />
+                >
+                  <option value="">Select payment terms</option>
+                  {optionsIncludingCurrent(PAYMENT_TERMS, paymentTerms).map((option) => (
+                    <option key={option.label} value={option.label}>{termOptionText(option)}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

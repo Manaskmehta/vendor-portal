@@ -1,6 +1,6 @@
 export const API_URL =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
-  "http://localhost:3001/api";
+  "http://localhost:8978/api";
 
 export const API_BASE = API_URL.replace(/\/api$/, "");
 
