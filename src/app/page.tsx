@@ -49,8 +49,8 @@ export default function VendorLoginPage() {
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center mb-1">
             <Image
-              src="/macanx-logo.png"
-              alt="MacanX"
+              src="/wccs-logo.png"
+              alt="WCCS"
               width={420}
               height={140}
               className="h-[120px] w-auto object-contain"
@@ -141,7 +141,7 @@ export default function VendorLoginPage() {
         </div>
 
         <p className="text-center text-[10px] font-bold text-gray-300 uppercase tracking-widest">
-          &copy; 2026 MACANX. ALL RIGHTS RESERVED.
+          &copy; 2026 WCCS. ALL RIGHTS RESERVED.
         </p>
       </div>
     </div>

@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MacanX - Vendor Portal",
-  description: "Vendor portal for MacanX ERP system",
+  title: "WCCS - Vendor Portal",
+  description: "Vendor portal for the WCCS ERP system",
   icons: {
-    icon: "/ring.png",
-    apple: "/ring.png",
+    icon: "/wccs-mark.png",
+    apple: "/wccs-mark.png",
   },
 };
 

@@ -415,8 +415,8 @@ export default function VendorDashboard() {
       <header className="border-b border-gray-100 px-8 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Image
-            src="/macanx-logo.png"
-            alt="MacanX"
+            src="/wccs-logo.png"
+            alt="WCCS"
             width={210}
             height={60}
             className="h-[54px] w-auto object-contain"
@@ -448,7 +448,7 @@ export default function VendorDashboard() {
         <section className="bg-white border border-gray-100 rounded-[2rem] overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-100">
             <h3 className="text-lg font-black tracking-tight">RFQ Inbox</h3>
-            <p className="text-xs font-medium text-gray-400 mt-1">Submit rates for requests sent by MacanX purchase team.</p>
+            <p className="text-xs font-medium text-gray-400 mt-1">Submit rates for requests sent by the WCCS purchase team.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
@@ -516,7 +516,7 @@ export default function VendorDashboard() {
           <div className="px-6 py-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <h3 className="text-lg font-black tracking-tight">Dispatch Against Purchase Order</h3>
-              <p className="text-xs font-medium text-gray-400 mt-1">Share dispatch, vehicle, challan, documents, and line quantities before MacanX creates GRN.</p>
+              <p className="text-xs font-medium text-gray-400 mt-1">Share dispatch, vehicle, challan, documents, and line quantities before WCCS creates the GRN.</p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -576,7 +576,7 @@ export default function VendorDashboard() {
         <section className="bg-white border border-gray-100 rounded-[2rem] overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-100">
             <h3 className="text-lg font-black tracking-tight">Submitted Dispatches</h3>
-            <p className="text-xs font-medium text-gray-400 mt-1">Dispatch details already sent to MacanX stores team.</p>
+            <p className="text-xs font-medium text-gray-400 mt-1">Dispatch details already sent to the WCCS stores team.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
@@ -632,7 +632,7 @@ export default function VendorDashboard() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Vendor Dispatch</p>
                 <h2 className="text-2xl font-black tracking-tight">{selectedPo.poNo}</h2>
-                <p className="text-xs font-medium text-gray-400 mt-1">This does not create GRN. MacanX will verify and receive separately.</p>
+                <p className="text-xs font-medium text-gray-400 mt-1">This does not create a GRN. WCCS will verify and receive the goods separately.</p>
               </div>
               <button onClick={() => { setSelectedPo(null); setDispatchModalError(""); }} className="p-2 hover:bg-gray-50 rounded-full">
                 <X className="w-4 h-4 text-gray-500" />
